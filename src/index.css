@@ -246,3 +246,284 @@ select {
     width: 200px;
   }
 }
+
+.pos-page {
+  display: grid;
+  gap: 16px;
+}
+
+.pos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.pos-session-card {
+  min-width: 270px;
+  background: linear-gradient(160deg, #f8fafc, #e2e8f0);
+  border: 1px solid #d7deea;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.pos-session-card p {
+  font-size: 13px;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.pos-session-card p:last-child {
+  margin-bottom: 0;
+}
+
+.pos-layout {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.pos-products-panel,
+.pos-cart-panel {
+  padding: 16px;
+}
+
+.pos-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.pos-search-wrap {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+}
+
+.pos-search {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 11px 12px;
+  background: #f8fafc;
+}
+
+.pos-search:focus {
+  outline: 2px solid #bfdbfe;
+  border-color: #60a5fa;
+  background: #fff;
+}
+
+.pos-category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pos-tab {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.pos-tab.active {
+  background: #1d4ed8;
+  color: white;
+  border-color: #1d4ed8;
+}
+
+.pos-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.pos-product-card {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.pos-sku {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.pos-product-card h3 {
+  font-size: 15px;
+  min-height: 38px;
+}
+
+.pos-stock {
+  font-size: 12px;
+  color: #475569;
+}
+
+.pos-product-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pos-product-footer span {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.pos-cart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.pos-cart-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pos-cart-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.pos-cart-row.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px #bfdbfe;
+}
+
+.pos-cart-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pos-cart-sku {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.pos-cart-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pos-cart-controls .btn {
+  padding: 5px 8px;
+}
+
+.pos-cart-price {
+  font-weight: 700;
+  min-width: 105px;
+  text-align: right;
+}
+
+.pos-summary {
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 0;
+  display: grid;
+  gap: 8px;
+}
+
+.pos-summary div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #334155;
+}
+
+.pos-total-row {
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.pos-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pos-actions .btn:last-child {
+  grid-column: 1 / -1;
+  font-weight: 700;
+  padding: 11px;
+}
+
+.pos-cash-input {
+  width: 120px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: right;
+}
+
+.pos-quick-cash {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pos-negative {
+  color: #b91c1c;
+}
+
+.pos-note {
+  color: #64748b;
+  font-size: 14px;
+}
+
+@media (max-width: 1200px) {
+  .pos-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .pos-header {
+    flex-direction: column;
+  }
+
+  .pos-session-card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pos-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pos-search-wrap {
+    flex-direction: column;
+  }
+
+  .pos-cart-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pos-cart-price {
+    text-align: left;
+    min-width: 0;
+  }
+}
