@@ -2,8 +2,8 @@ export default function Navbar() {
   return (
     <header className="navbar">
       <div>
-        <h2 className="navbar-title">POS and Inventory System</h2>
-        <p className="navbar-subtitle">React UI Prototype</p>
+        <h2 className="navbar-title">SariPH</h2>
+        <p className="navbar-subtitle">POS and Inventory</p>
       </div>
 
       <div className="navbar-user">

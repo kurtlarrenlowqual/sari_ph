@@ -10,7 +10,7 @@ export default function DashboardPage() {
     <div>
       <div className="page-header">
         <h1>Dashboard</h1>
-        <p>Overview of the POS and inventory system</p>
+        <p>Overview</p>
       </div>
 
       <div className="stats-grid">
