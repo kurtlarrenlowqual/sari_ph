@@ -21,8 +21,8 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <h1>RetailPOS Login</h1>
-        <p>Demo frontend for prelim presentation</p>
+        <h1>SariPH POS Login</h1>
+        <p>Login to your account</p>
 
         <form onSubmit={handleSubmit} className="form-grid">
           <label>
