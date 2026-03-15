@@ -31,7 +31,8 @@ function AppLayout() {
   );
 }
 
-export default function AppRoutes() {
+// 1. Accept the props here
+export default function AppRoutes({ products, onAdd, onUpdate, onDelete }) {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
@@ -40,9 +41,10 @@ export default function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
 
-        <Route path="/products" element={<ProductListPage />} />
-        <Route path="/products/add" element={<AddProductPage />} />
-        <Route path="/products/edit/:id" element={<EditProductPage />} />
+        {/* 2. Pass the data ONLY to the product pages */}
+        <Route path="/products" element={<ProductListPage products={products} onDelete={onDelete} />} />
+        <Route path="/products/add" element={<AddProductPage onAdd={onAdd} />} />
+        <Route path="/products/edit/:id" element={<EditProductPage products={products} onUpdate={onUpdate} />} />
 
         <Route path="/users" element={<UserListPage />} />
         <Route path="/users/add" element={<AddUserPage />} />
