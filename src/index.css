@@ -169,11 +169,75 @@ select {
   padding: 10px 14px;
   border-radius: 8px;
   cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  background: #d1d5db;
 }
 
 .btn-primary {
   background: #2563eb;
   color: white;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid #2563eb;
+  color: #2563eb;
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.user-table th,
+.user-table td {
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  padding: 10px;
+}
+
+.user-table thead {
+  background: #f8fafc;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.user-table {
+  width: 100%;
+  min-width: 100%;
+}
+
+@media (max-width: 720px) {
+  .panel {
+    padding: 14px;
+  }
+
+  .user-table {
+    min-width: 0;
+    font-size: 14px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .button-full {
+    width: 100%;
+  }
 }
 
 .login-page {
@@ -219,6 +283,72 @@ select {
   border-radius: 8px;
 }
 
+.add-user-panel {
+  max-width: 780px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.panel-header h2 {
+  margin-bottom: 3px;
+  font-size: 18px;
+}
+
+.badge {
+  font-size: 12px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #1d4ed8;
+  padding: 4px 10px;
+  font-weight: 600;
+  align-self: center;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  grid-column: 1 / -1;
+}
+
+.button-full {
+  min-width: 140px;
+}
+
+.form-message {
+  margin-top: 10px;
+  color: #047857;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .button-full {
+    width: 100%;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 .hint-box {
   margin-top: 16px;
   background: #eff6ff;
@@ -226,10 +356,63 @@ select {
   padding: 12px;
   border-radius: 8px;
   font-size: 14px;
+  color: #1d4ed8;
 }
 
-.stub-card h1 {
-  margin-bottom: 10px;
+.form-notice {
+  background: #f3f4f6;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.panel {
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.06);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.add-user-panel {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 100%;
+}
+
+.user-table th,
+.user-table td {
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  padding: 10px;
+}
+
+.user-table thead {
+  background: #f8fafc;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  width: 100%;
 }
 
 .stub-card p {
