@@ -5,8 +5,10 @@ const navItems = [
   { to: "/products", label: "Products" },
   { to: "/users", label: "Users" },
   { to: "/sales/pos", label: "POS" },
-  { to: "/receipts/reprint", label: "Receipts" },
+  { to: "/receipts/new", label: "New Receipt" },
+  { to: "/receipts/reprint", label: "Reprint" },
   { to: "/supervisor/post-void", label: "Post Void" },
+  { to: "/supervisor/settings", label: "Supervisor Settings" },
 ];
 
 export default function Sidebar() {

@@ -14,8 +14,10 @@ import UserListPage from "./pages/users/UserListPage";
 import AddUserPage from "./pages/users/AddUserPage";
 
 import POSPage from "./pages/sales/POSPage";
+import ReceiptPage from "./pages/receipts/ReceiptPage";
 import ReprintReceiptPage from "./pages/receipts/ReprintReceiptPage";
 import PostVoidApprovalPage from "./pages/supervisor/PostVoidApprovalPage";
+import SupervisorSettingsPage from "./pages/supervisor/SupervisorSettingsPage";
 
 function AppLayout() {
   return (
@@ -48,8 +50,10 @@ export default function AppRoutes() {
         <Route path="/users/add" element={<AddUserPage />} />
 
         <Route path="/sales/pos" element={<POSPage />} />
+        <Route path="/receipts/new" element={<ReceiptPage />} />
         <Route path="/receipts/reprint" element={<ReprintReceiptPage />} />
         <Route path="/supervisor/post-void" element={<PostVoidApprovalPage />} />
+        <Route path="/supervisor/settings" element={<SupervisorSettingsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
