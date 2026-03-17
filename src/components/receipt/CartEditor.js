@@ -42,19 +42,21 @@ export default function CartEditor({ items, onChange }) {
   };
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <h2>Cart Items</h2>
+    <div className="card border-0 shadow-sm">
+      <div className="card-header bg-white">
+        <h2 className="h5 mb-0">Cart Items</h2>
       </div>
       <div className="card-body">
-        <form className="cart-form" onSubmit={handleAdd}>
+        <form className="cart-form row g-2" onSubmit={handleAdd}>
           <input
+            className="form-control"
             type="text"
             placeholder="Item name"
             value={draft.name}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
           />
           <input
+            className="form-control"
             type="number"
             min="1"
             placeholder="Qty"
@@ -62,6 +64,7 @@ export default function CartEditor({ items, onChange }) {
             onChange={(e) => setDraft({ ...draft, qty: e.target.value })}
           />
           <input
+            className="form-control"
             type="number"
             step="0.01"
             min="0"
@@ -69,65 +72,69 @@ export default function CartEditor({ items, onChange }) {
             value={draft.price}
             onChange={(e) => setDraft({ ...draft, price: e.target.value })}
           />
-          <button type="submit">Add</button>
+          <button className="btn btn-primary" type="submit">Add</button>
         </form>
 
-        <table className="cart-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Total</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 && (
+        <div className="table-responsive">
+          <table className="cart-table table align-middle mb-0">
+            <thead>
               <tr>
-                <td colSpan="5" className="empty-row">
-                  No items yet.
-                </td>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Total</th>
+                <th />
               </tr>
-            )}
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <input
-                    type="text"
-                    value={item.name}
-                    onChange={(e) => handleItemChange(item.id, "name", e.target.value)}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.qty}
-                    onChange={(e) => handleItemChange(item.id, "qty", e.target.value)}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={item.price}
-                    onChange={(e) => handleItemChange(item.id, "price", e.target.value)}
-                  />
-                </td>
-                <td>₱{(item.qty * item.price).toFixed(2)}</td>
-                <td>
-                  <button type="button" onClick={() => handleRemove(item.id)}>
-                    Remove
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="empty-row">
+                    No items yet.
+                  </td>
+                </tr>
+              )}
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <input
+                      className="form-control form-control-sm"
+                      type="text"
+                      value={item.name}
+                      onChange={(e) => handleItemChange(item.id, "name", e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      className="form-control form-control-sm"
+                      type="number"
+                      min="1"
+                      value={item.qty}
+                      onChange={(e) => handleItemChange(item.id, "qty", e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      className="form-control form-control-sm"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={item.price}
+                      onChange={(e) => handleItemChange(item.id, "price", e.target.value)}
+                    />
+                  </td>
+                  <td>PHP {(item.qty * item.price).toFixed(2)}</td>
+                  <td>
+                    <button className="btn btn-sm btn-outline-danger" type="button" onClick={() => handleRemove(item.id)}>
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
-

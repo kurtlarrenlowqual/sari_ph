@@ -1,11 +1,13 @@
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import Navbar from "./components/layout/Navbar";
 import Sidebar from "./components/layout/Sidebar";
+import { GuestOnlyRoute, ProtectedRoute } from "./components/auth/RouteGuards";
 
 import LoginPage from "./pages/LoginPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 
-// groupmates will build these pages later
 import ProductListPage from "./pages/products/ProductListPage";
 import AddProductPage from "./pages/products/AddProductPage";
 import EditProductPage from "./pages/products/EditProductPage";
@@ -18,14 +20,22 @@ import ReceiptPage from "./pages/receipts/ReceiptPage";
 import ReprintReceiptPage from "./pages/receipts/ReprintReceiptPage";
 import PostVoidApprovalPage from "./pages/supervisor/PostVoidApprovalPage";
 import SupervisorSettingsPage from "./pages/supervisor/SupervisorSettingsPage";
+import ReportsPage from "./pages/reports/ReportsPage";
 
 function AppLayout() {
+  const location = useLocation();
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
   return (
     <div className="app-shell">
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="main-area">
-        <Navbar />
-        <main className="page-content">
+        <Navbar onMenuToggle={() => setSidebarOpen((prev) => !prev)} />
+        <main className="page-content container-fluid">
           <Outlet />
         </main>
       </div>
@@ -33,32 +43,48 @@ function AppLayout() {
   );
 }
 
-// 1. Accept the props here
-export default function AppRoutes({ products, onAdd, onUpdate, onDelete }) {
+export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      <Route element={<AppLayout />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
-
-        {/* 2. Pass the data ONLY to the product pages */}
-        <Route path="/products" element={<ProductListPage products={products} onDelete={onDelete} />} />
-        <Route path="/products/add" element={<AddProductPage onAdd={onAdd} />} />
-        <Route path="/products/edit/:id" element={<EditProductPage products={products} onUpdate={onUpdate} />} />
-
-        <Route path="/users" element={<UserListPage />} />
-        <Route path="/users/add" element={<AddUserPage />} />
-
-        <Route path="/sales/pos" element={<POSPage />} />
-        <Route path="/receipts/new" element={<ReceiptPage />} />
-        <Route path="/receipts/reprint" element={<ReprintReceiptPage />} />
-        <Route path="/supervisor/post-void" element={<PostVoidApprovalPage />} />
-        <Route path="/supervisor/settings" element={<SupervisorSettingsPage />} />
+      <Route element={<GuestOnlyRoute />}>
+        <Route path="/login" element={<LoginPage />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="/change-password" element={<ChangePasswordPage />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+
+          <Route element={<ProtectedRoute allowedRoles={["Administrator"]} />}>
+            <Route path="/products" element={<ProductListPage />} />
+            <Route path="/products/add" element={<AddProductPage />} />
+            <Route path="/products/edit/:id" element={<EditProductPage />} />
+
+            <Route path="/users" element={<UserListPage />} />
+            <Route path="/users/add" element={<AddUserPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={["Cashier"]} />}>
+            <Route path="/sales/pos" element={<POSPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={["Cashier", "Supervisor"]} />}>
+            <Route path="/receipts/new" element={<ReceiptPage />} />
+            <Route path="/receipts/reprint" element={<ReprintReceiptPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={["Supervisor"]} />}>
+            <Route path="/supervisor/post-void" element={<PostVoidApprovalPage />} />
+            <Route path="/supervisor/settings" element={<SupervisorSettingsPage />} />
+          </Route>
+        </Route>
+      </Route>
+
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }

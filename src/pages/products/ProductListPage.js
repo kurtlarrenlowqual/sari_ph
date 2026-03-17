@@ -1,80 +1,112 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { usePos } from "../../state/posStore";
 
-export default function ProductListPage({ products = [], onDelete }) {
+export default function ProductListPage() {
   const navigate = useNavigate();
+  const { state, currentUser, runAction } = usePos();
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
-  const styles = {
-    wrapper: { fontFamily: "'Inter', system-ui, sans-serif", color: "#111827", padding: "2rem", maxWidth: "1000px", margin: "0 auto" },
-    header: { marginBottom: "2rem" },
-    h1: { fontSize: "1.875rem", fontWeight: "700", margin: "0 0 0.25rem 0" },
-    subtitle: { color: "#6b7280", margin: "0", fontSize: "1rem" },
-    panel: { background: "#ffffff", borderRadius: "0.75rem", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)", padding: "2rem", border: "1px solid #f3f4f6" },
-    headerActions: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" },
-    h2: { margin: "0", fontSize: "1.25rem", color: "#111827" },
-    button: { padding: "0.625rem 1.25rem", backgroundColor: "#4f46e5", color: "white", border: "none", borderRadius: "0.5rem", fontSize: "0.875rem", fontWeight: "600", cursor: "pointer" },
-    tableContainer: { overflowX: "auto", borderRadius: "0.5rem", border: "1px solid #e5e7eb" },
-    table: { width: "100%", borderCollapse: "collapse", textAlign: "left" },
-    th: { padding: "1rem 1.5rem", backgroundColor: "#f9fafb", fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "600", color: "#6b7280", borderBottom: "1px solid #e5e7eb" },
-    td: { padding: "1rem 1.5rem", fontSize: "0.875rem", color: "#111827", borderBottom: "1px solid #e5e7eb" },
-    statusBadgeActive: { padding: "0.25rem 0.75rem", borderRadius: "9999px", fontSize: "0.75rem", fontWeight: "600", backgroundColor: "#d1fae5", color: "#065f46" },
-    statusBadgeInactive: { padding: "0.25rem 0.75rem", borderRadius: "9999px", fontSize: "0.75rem", fontWeight: "600", backgroundColor: "#fee2e2", color: "#991b1b" },
-    actionBtn: { marginRight: "10px", padding: "0.4rem 0.8rem", cursor: "pointer", border: "1px solid #d1d5db", borderRadius: "0.375rem", background: "white", fontSize: "0.75rem" },
-    deleteBtn: { padding: "0.4rem 0.8rem", cursor: "pointer", border: "1px solid #fca5a5", borderRadius: "0.375rem", background: "#fef2f2", color: "#dc2626", fontSize: "0.75rem" },
-    emptyState: { textAlign: "center", padding: "2rem", color: "#6b7280" }
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return state.products.filter((p) => {
+      const statusOk = statusFilter === "All" || p.status === statusFilter;
+      if (!statusOk) return false;
+      if (!needle) return true;
+      return p.name.toLowerCase().includes(needle) || p.barcode === query.trim();
+    });
+  }, [state.products, query, statusFilter]);
+
+  const toggleStatus = (product) => {
+    const nextStatus = product.status === "Active" ? "Inactive" : "Active";
+    const ok = window.confirm(
+      `${nextStatus === "Inactive" ? "Deactivate" : "Reactivate"} ${product.name}?`
+    );
+    if (!ok) return;
+    runAction({
+      type: "SET_PRODUCT_STATUS",
+      payload: { actor: currentUser.username, productId: product.id, status: nextStatus },
+    });
   };
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.header}>
-        <h1 style={styles.h1}>Products</h1>
-        <p style={styles.subtitle}>Manage product inventory and pricing</p>
+    <div className="page d-flex flex-column gap-3">
+      <div className="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <h1 className="mb-1">Products</h1>
+          <p className="mb-0">Search by product name, barcode, or partial text</p>
+        </div>
       </div>
 
-      <div style={styles.panel}>
-        <div style={styles.headerActions}>
-          <h2 style={styles.h2}>Product List</h2>
-          {/* Navigate to the add URL */}
-          <button style={styles.button} onClick={() => navigate('/products/add')}>+ Add Product</button>
+      <div className="card panel border-0 shadow-sm">
+        <div className="card-body">
+          <div className="panel-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+              <h2 className="h5 mb-1">Product Catalog</h2>
+              <p className="mb-0">Active and inactive products are retained for history.</p>
+          </div>
+            <button className="btn btn-primary" onClick={() => navigate("/products/add")}>
+            Add Product
+          </button>
         </div>
 
-        <div style={styles.tableContainer}>
-          <table style={styles.table}>
+          <div className="toolbar-inline row g-2 mb-3">
+            <div className="col-12 col-lg-8">
+          <input
+                className="search-input form-control"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name or exact barcode"
+          />
+            </div>
+            <div className="col-12 col-lg-4">
+              <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="All">All</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+            </div>
+        </div>
+
+          <div className="table-wrap table-responsive">
+            <table className="user-table table table-hover align-middle mb-0">
             <thead>
               <tr>
-                <th style={styles.th}>ID</th>
-                <th style={styles.th}>Name</th>
-                <th style={styles.th}>Price</th>
-                <th style={styles.th}>Stock</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Actions</th>
+                <th>Name</th>
+                <th>Barcode</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {products.length === 0 ? (
-                <tr><td colSpan="6" style={styles.emptyState}>No products found.</td></tr>
-              ) : (
-                products.map((product) => (
-                  <tr key={product.id}>
-                    <td style={styles.td}>#{product.id}</td>
-                    <td style={styles.td}><strong>{product.name}</strong></td>
-                    <td style={styles.td}>₱{Number(product.price).toFixed(2)}</td>
-                    <td style={styles.td}>{product.stock}</td>
-                    <td style={styles.td}>
-                      <span style={product.status === "Active" ? styles.statusBadgeActive : styles.statusBadgeInactive}>
-                        {product.status}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      {/* Navigate to the edit URL with the specific product ID */}
-                      <button style={styles.actionBtn} onClick={() => navigate(`/products/edit/${product.id}`)}>Edit</button>
-                      <button style={styles.deleteBtn} onClick={() => onDelete(product.id)}>Delete</button>
-                    </td>
-                  </tr>
-                ))
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan="6">No matching products found.</td>
+                </tr>
               )}
+              {filtered.map((product) => (
+                <tr key={product.id}>
+                  <td>{product.name}</td>
+                  <td>{product.barcode}</td>
+                  <td>PHP {Number(product.price).toFixed(2)}</td>
+                  <td>{product.stock}</td>
+                  <td>{product.status}</td>
+                  <td>
+                    <button className="btn btn-outline-secondary btn-sm me-2" onClick={() => navigate(`/products/edit/${product.id}`)}>
+                      Update
+                    </button>
+                    <button className="btn btn-outline-secondary btn-sm" onClick={() => toggleStatus(product)}>
+                      {product.status === "Active" ? "Deactivate" : "Reactivate"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

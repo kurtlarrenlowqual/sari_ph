@@ -1,74 +1,99 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { usePos } from "../../state/posStore";
 
-export default function AddProductPage({ onAdd }) {
+export default function AddProductPage() {
   const navigate = useNavigate();
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('');
-  const [status, setStatus] = useState('Active');
+  const { currentUser, runAction } = usePos();
+  const [form, setForm] = useState({ name: "", barcode: "", price: "", stock: "" });
+  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState("");
 
-  const handleSubmit = (e) => {
+  const submit = (e) => {
     e.preventDefault();
-    if (!name || !price || !stock) return alert("Please fill all fields");
-    
-    onAdd({ name, price: Number(price), stock: Number(stock), status });
-    navigate('/products'); // Go back to product list after saving
-  };
+    const result = runAction({
+      type: "CREATE_PRODUCT",
+      payload: {
+        actor: currentUser.username,
+        product: {
+          name: form.name,
+          barcode: form.barcode,
+          price: form.price,
+          stock: form.stock,
+        },
+      },
+    });
 
-  const styles = {
-    wrapper: { fontFamily: "'Inter', system-ui, sans-serif", color: "#111827", padding: "2rem", maxWidth: "800px", margin: "0 auto" },
-    header: { marginBottom: "2rem" },
-    h1: { fontSize: "1.875rem", fontWeight: "700", margin: "0 0 0.25rem 0" },
-    subtitle: { color: "#6b7280", margin: "0", fontSize: "1rem" },
-    panel: { background: "#ffffff", borderRadius: "0.75rem", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)", padding: "2rem", border: "1px solid #f3f4f6" },
-    formGrid: { display: "flex", flexDirection: "column", gap: "1.5rem" },
-    inputGroup: { display: "flex", flexDirection: "column", gap: "0.5rem" },
-    label: { fontSize: "0.875rem", fontWeight: "600", color: "#374151" },
-    input: { padding: "0.75rem", border: "1px solid #d1d5db", borderRadius: "0.5rem", fontSize: "0.875rem", backgroundColor: "#f9fafb", width: "100%", boxSizing: "border-box" },
-    buttonGroup: { display: "flex", gap: "1rem", marginTop: "1rem" },
-    buttonPrimary: { padding: "0.75rem 1.5rem", backgroundColor: "#4f46e5", color: "white", border: "none", borderRadius: "0.5rem", fontWeight: "600", cursor: "pointer" },
-    buttonSecondary: { padding: "0.75rem 1.5rem", backgroundColor: "#ffffff", color: "#374151", border: "1px solid #d1d5db", borderRadius: "0.5rem", fontWeight: "600", cursor: "pointer" }
+    if (!result.ok) {
+      setErrors(result.errors || {});
+      setMessage("Please fix validation errors.");
+      return;
+    }
+
+    setErrors({});
+    setMessage("Product created successfully and set to Active.");
+    setTimeout(() => navigate("/products"), 400);
   };
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.header}>
-        <h1 style={styles.h1}>Add Product</h1>
-        <p style={styles.subtitle}>Create a new product entry in the catalog</p>
+    <div className="page d-flex flex-column gap-3">
+      <div className="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <h1 className="mb-1">Add Product</h1>
+          <p className="mb-0">Required: name, barcode, price, stock</p>
+        </div>
       </div>
 
-      <div style={styles.panel}>
-        <form style={styles.formGrid} onSubmit={handleSubmit}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Product Name</label>
-            <input style={styles.input} type="text" value={name} onChange={e => setName(e.target.value)} />
-          </div>
+      <div className="card panel add-user-panel border-0 shadow-sm">
+        <div className="card-body">
+          <form className="form-grid row g-3" onSubmit={submit}>
+            <label className="form-label col-12 mb-0">
+            Product Name
+              <input className="form-control" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+            {errors.name && <span className="form-error">{errors.name}</span>}
+          </label>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Price (₱)</label>
-            <input style={styles.input} type="number" value={price} onChange={e => setPrice(e.target.value)} />
-          </div>
+            <label className="form-label col-12 mb-0">
+            Barcode
+              <input className="form-control" value={form.barcode} onChange={(e) => setForm((p) => ({ ...p, barcode: e.target.value }))} />
+            {errors.barcode && <span className="form-error">{errors.barcode}</span>}
+          </label>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Stock Quantity</label>
-            <input style={styles.input} type="number" value={stock} onChange={e => setStock(e.target.value)} />
-          </div>
+            <label className="form-label col-12 col-md-6 mb-0">
+            Unit Price
+            <input
+                className="form-control"
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.price}
+              onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+            />
+            {errors.price && <span className="form-error">{errors.price}</span>}
+          </label>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Status</label>
-            <select style={styles.input} value={status} onChange={e => setStatus(e.target.value)}>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
+            <label className="form-label col-12 col-md-6 mb-0">
+            Initial Stock
+            <input
+                className="form-control"
+              type="number"
+              step="1"
+              min="0"
+              value={form.stock}
+              onChange={(e) => setForm((p) => ({ ...p, stock: e.target.value }))}
+            />
+            {errors.stock && <span className="form-error">{errors.stock}</span>}
+          </label>
 
-          <div style={styles.buttonGroup}>
-            <button style={styles.buttonPrimary} type="submit">Save Product</button>
-            <button style={styles.buttonSecondary} type="button" onClick={() => navigate('/products')}>Cancel</button>
+            <div className="form-actions col-12 d-flex justify-content-end gap-2 flex-wrap">
+              <button type="button" className="btn btn-secondary" onClick={() => navigate("/products")}>Cancel</button>
+              <button className="btn btn-primary" type="submit">Save Product</button>
+            </div>
+          </form>
+
+          {message && <p className="form-message mb-0 mt-3">{message}</p>}
           </div>
-        </form>
-      </div>
+        </div>
     </div>
   );
 }

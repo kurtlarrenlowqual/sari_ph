@@ -1,356 +1,319 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { usePos } from "../../state/posStore";
 
-const categories = ["All", "School Supplies", "Snacks", "Beverages", "Household"];
-
-const products = [
-  { sku: "P-1001", name: "Notebook - 80 Leaves", price: 55, stock: 120, category: "School Supplies" },
-  { sku: "P-1002", name: "Ballpen - Blue", price: 12, stock: 340, category: "School Supplies" },
-  { sku: "P-1003", name: "Pencil No. 2", price: 9, stock: 220, category: "School Supplies" },
-  { sku: "P-1004", name: "Bottled Water 500ml", price: 20, stock: 80, category: "Beverages" },
-  { sku: "P-1005", name: "Instant Noodles", price: 22, stock: 95, category: "Snacks" },
-  { sku: "P-1006", name: "Laundry Bar Soap", price: 34, stock: 70, category: "Household" },
-];
-
-const initialCartItems = [
-  { sku: "P-1001", name: "Notebook - 80 Leaves", price: 55, qty: 2 },
-  { sku: "P-1002", name: "Ballpen - Blue", price: 12, qty: 3 },
-  { sku: "P-1004", name: "Bottled Water 500ml", price: 20, qty: 1 },
-];
-
-const customerNames = ["Walk-in Customer", "Jane Santos", "Mark Dela Cruz", "Ana Reyes"];
-const discountLevels = [0, 10, 20, 50];
-
-function toPHP(amount) {
-  return `PHP ${amount.toFixed(2)}`;
+function toPhp(amount) {
+  return `PHP ${Number(amount || 0).toFixed(2)}`;
 }
 
-function getNextTransaction(seed = 21) {
-  return `TXN-2026-0315-${String(seed).padStart(3, "0")}`;
-}
+const discountChoices = [
+  { value: "SENIOR_CITIZEN", label: "Senior Citizen" },
+  { value: "PWD", label: "PWD" },
+  { value: "ATHLETE", label: "Athlete" },
+  { value: "SOLO_PARENT", label: "Solo Parent" },
+];
 
 export default function POSPage() {
-  const [cartItems, setCartItems] = useState(initialCartItems);
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSku, setSelectedSku] = useState(initialCartItems[0]?.sku || "");
-  const [discount, setDiscount] = useState(10);
-  const [cashInput, setCashInput] = useState("300");
-  const [customerIndex, setCustomerIndex] = useState(0);
-  const [heldSales, setHeldSales] = useState([]);
-  const [transactionSeed, setTransactionSeed] = useState(21);
+  const navigate = useNavigate();
+  const { state, currentUser, discountRules, runAction } = usePos();
+
+  const [query, setQuery] = useState("");
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [cartItems, setCartItems] = useState([]);
+  const [selectedCartId, setSelectedCartId] = useState("");
+  const [discountType, setDiscountType] = useState("NONE");
+  const [stagedDiscount, setStagedDiscount] = useState("SENIOR_CITIZEN");
+  const [cashInput, setCashInput] = useState("");
   const [message, setMessage] = useState("Ready for checkout.");
 
+  const activeProducts = state.products.filter((p) => p.status === "Active");
+
   const filteredProducts = useMemo(() => {
-    const needle = searchQuery.trim().toLowerCase();
-    return products.filter((product) => {
-      const categoryOk = activeCategory === "All" || product.category === activeCategory;
-      const searchOk =
-        needle.length === 0 ||
-        product.name.toLowerCase().includes(needle) ||
-        product.sku.toLowerCase().includes(needle);
-      return categoryOk && searchOk;
+    const needle = query.trim().toLowerCase();
+    return activeProducts.filter((p) => {
+      if (!needle) return true;
+      return p.name.toLowerCase().includes(needle) || p.barcode.includes(needle);
     });
-  }, [activeCategory, searchQuery]);
+  }, [activeProducts, query]);
 
   const subtotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.price * item.qty, 0),
     [cartItems]
   );
-  const tax = subtotal * 0.12;
-  const total = Math.max(subtotal + tax - discount, 0);
-  const cashTendered = Number.parseFloat(cashInput) || 0;
-  const change = cashTendered - total;
+  const discountAmount = Number((subtotal * (discountRules[discountType]?.rate || 0)).toFixed(2));
+  const total = Number(Math.max(subtotal - discountAmount, 0).toFixed(2));
+  const cash = Number(cashInput || 0);
+  const change = Number((cash - total).toFixed(2));
 
-  const incrementQty = (sku) => {
-    setCartItems((prev) =>
-      prev.map((item) => (item.sku === sku ? { ...item, qty: item.qty + 1 } : item))
-    );
-  };
-
-  const decrementQty = (sku) => {
-    setCartItems((prev) =>
-      prev
-        .map((item) => (item.sku === sku ? { ...item, qty: Math.max(item.qty - 1, 0) } : item))
-        .filter((item) => item.qty > 0)
-    );
-    if (selectedSku === sku) {
-      setSelectedSku("");
+  const addProduct = (product) => {
+    if (product.stock <= 0) {
+      setMessage("Product is out of stock.");
+      return;
     }
-  };
+    const currentQty = cartItems.find((c) => c.productId === product.id)?.qty || 0;
+    if (currentQty + 1 > product.stock) {
+      setMessage("Cannot exceed available stock.");
+      return;
+    }
 
-  const addToCart = (product) => {
     setCartItems((prev) => {
-      const existing = prev.find((item) => item.sku === product.sku);
+      const existing = prev.find((item) => item.productId === product.id);
       if (existing) {
         return prev.map((item) =>
-          item.sku === product.sku ? { ...item, qty: item.qty + 1 } : item
+          item.productId === product.id ? { ...item, qty: item.qty + 1 } : item
         );
       }
-      return [...prev, { sku: product.sku, name: product.name, price: product.price, qty: 1 }];
+      return [
+        ...prev,
+        {
+          lineId: `${product.id}-${Date.now()}`,
+          productId: product.id,
+          barcode: product.barcode,
+          name: product.name,
+          price: product.price,
+          qty: 1,
+        },
+      ];
     });
-    setSelectedSku(product.sku);
     setMessage(`${product.name} added to cart.`);
   };
 
+  const scanBarcode = () => {
+    const code = barcodeInput.trim();
+    if (!code) return;
+    const product = activeProducts.find((p) => p.barcode === code);
+    if (!product) {
+      setMessage("No active product found with that barcode.");
+      return;
+    }
+    addProduct(product);
+    setBarcodeInput("");
+  };
+
+  const updateQty = (lineId, delta) => {
+    setCartItems((prev) =>
+      prev
+        .map((line) => {
+          if (line.lineId !== lineId) return line;
+          const product = state.products.find((p) => p.id === line.productId);
+          const maxStock = product?.stock ?? 0;
+          const nextQty = line.qty + delta;
+          if (nextQty <= 0) return { ...line, qty: 0 };
+          if (nextQty > maxStock) return line;
+          return { ...line, qty: nextQty };
+        })
+        .filter((line) => line.qty > 0)
+    );
+  };
+
   const applyDiscount = () => {
-    const currentIndex = discountLevels.indexOf(discount);
-    const next = discountLevels[(currentIndex + 1) % discountLevels.length];
-    setDiscount(next);
-    setMessage(next === 0 ? "Discount removed." : `Discount set to ${toPHP(next)}.`);
+    if (discountType !== "NONE") {
+      setMessage("Only one discount can be applied per sale.");
+      return;
+    }
+    setDiscountType(stagedDiscount);
+    setMessage(`${discountRules[stagedDiscount].label} discount applied.`);
   };
 
   const voidSelectedItem = () => {
-    if (!selectedSku) {
-      setMessage("Select a cart item to void.");
+    if (!selectedCartId) {
+      setMessage("Select an item from cart first.");
       return;
     }
-    const removedItem = cartItems.find((item) => item.sku === selectedSku);
-    setCartItems((prev) => prev.filter((item) => item.sku !== selectedSku));
-    setSelectedSku("");
-    if (removedItem) {
-      setMessage(`${removedItem.name} removed from cart.`);
-    }
+    const item = cartItems.find((c) => c.lineId === selectedCartId);
+    if (!item) return;
+    const reason = window.prompt("Reason for voiding this item:", "Wrong scan") || "Wrong scan";
+    runAction({
+      type: "VOID_ITEM_LOG",
+      payload: {
+        actor: currentUser.username,
+        item,
+        reason,
+      },
+    });
+    setCartItems((prev) => prev.filter((c) => c.lineId !== selectedCartId));
+    setSelectedCartId("");
+    setMessage(`Voided ${item.name}.`);
   };
 
-  const clearCart = () => {
+  const cancelSale = () => {
     if (cartItems.length === 0) {
-      setMessage("Cart is already empty.");
+      setMessage("There is no ongoing sale to cancel.");
       return;
     }
+    const reason = window.prompt("Reason for canceling this sale:", "Customer canceled order") || "Customer canceled order";
+    runAction({
+      type: "CANCEL_SALE",
+      payload: {
+        actor: currentUser.username,
+        cartItems,
+        reason,
+      },
+    });
     setCartItems([]);
-    setSelectedSku("");
-    setMessage("Cart cleared.");
-  };
-
-  const holdSale = () => {
-    if (cartItems.length === 0) {
-      setMessage("No items to hold.");
-      return;
-    }
-    setHeldSales((prev) => [...prev, { id: getNextTransaction(transactionSeed), items: cartItems }]);
-    setTransactionSeed((prev) => prev + 1);
-    setCartItems([]);
-    setSelectedSku("");
-    setMessage("Current sale moved to hold queue.");
+    setSelectedCartId("");
+    setDiscountType("NONE");
+    setCashInput("");
+    setMessage("Sale canceled. No receipt generated.");
   };
 
   const completeSale = () => {
-    if (cartItems.length === 0) {
-      setMessage("Add items before completing sale.");
+    const result = runAction({
+      type: "COMPLETE_SALE",
+      payload: {
+        actor: currentUser.username,
+        cartItems,
+        payment: { cash },
+        discountType,
+      },
+    });
+
+    if (!result.ok) {
+      setMessage(result.error || "Unable to complete sale.");
       return;
     }
-    if (change < 0) {
-      setMessage("Insufficient cash tendered.");
-      return;
-    }
-    setMessage(`Sale completed. Change: ${toPHP(change)}.`);
+
     setCartItems([]);
-    setSelectedSku("");
-    setDiscount(10);
-    setCashInput("0");
-    setTransactionSeed((prev) => prev + 1);
-  };
-
-  const setQuickCash = (amount) => {
-    setCashInput(String(amount));
-  };
-
-  const cycleCustomer = () => {
-    setCustomerIndex((prev) => (prev + 1) % customerNames.length);
-    setMessage(`Customer set to ${customerNames[(customerIndex + 1) % customerNames.length]}.`);
+    setSelectedCartId("");
+    setDiscountType("NONE");
+    setCashInput("");
+    setMessage(`Sale completed. Change: ${toPhp(result.transaction.payment.change)}`);
+    navigate(`/receipts/new?transactionId=${result.transaction.id}`);
   };
 
   return (
-    <div className="pos-page">
-      <div className="page-header pos-header">
+    <div className="pos-page d-flex flex-column gap-3">
+      <div className="page-header pos-header d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
-          <h1>Point of Sale</h1>
-          <p>Fast checkout, item lookup, and payment summary</p>
+          <h1 className="mb-1">Point of Sale</h1>
+          <p className="mb-0">Scan/select products and complete payment</p>
         </div>
-
         <div className="pos-session-card">
-          <p>
-            <strong>Cashier:</strong> Demo User
-          </p>
-          <p>
-            <strong>Shift:</strong> Morning Shift
-          </p>
-          <p>
-            <strong>Transaction:</strong> {getNextTransaction(transactionSeed)}
-          </p>
-          <p>
-            <strong>Customer:</strong> {customerNames[customerIndex]}
-          </p>
-          <p>
-            <strong>Held Sales:</strong> {heldSales.length}
-          </p>
+          <p><strong>Cashier:</strong> {currentUser.fullName}</p>
+          <p><strong>Role:</strong> {currentUser.role}</p>
+          <p><strong>Items in Cart:</strong> {cartItems.length}</p>
         </div>
       </div>
 
-      <div className="pos-layout">
-        <section className="panel pos-products-panel">
+      <div className="pos-layout row g-3">
+        <section className="col-xl-8">
+          <div className="card panel pos-products-panel border-0 shadow-sm h-100">
+            <div className="card-body">
           <div className="pos-toolbar">
-            <div className="pos-search-wrap">
-              <input
-                type="text"
-                className="pos-search"
-                placeholder="Search by Product Name or Product SKU"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-              />
-            </div>
-            <button className="btn" onClick={cycleCustomer}>
-              New Customer
-            </button>
+            <input
+              type="text"
+              className="pos-search form-control"
+              placeholder="Search by product name or barcode"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
 
-          <div className="pos-category-tabs">
-            {categories.map((category) => (
-              <button
-                key={category}
-                className={`pos-tab ${category === activeCategory ? "active" : ""}`}
-                onClick={() => setActiveCategory(category)}
-              >
-                {category}
-              </button>
-            ))}
+          <div className="scan-bar">
+            <input
+              className="form-control"
+              type="text"
+              value={barcodeInput}
+              onChange={(e) => setBarcodeInput(e.target.value)}
+              placeholder="Scan/enter exact barcode"
+            />
+            <button className="btn btn-secondary" onClick={scanBarcode}>Scan</button>
           </div>
 
           <div className="pos-product-grid">
             {filteredProducts.map((product) => (
-              <article className="pos-product-card" key={product.sku}>
-                <p className="pos-sku">{product.sku}</p>
+              <article className="pos-product-card" key={product.id}>
+                <p className="pos-sku">{product.barcode}</p>
                 <h3>{product.name}</h3>
-                <p className="pos-stock">
-                  {product.category} | Stock: {product.stock}
-                </p>
+                <p className="pos-stock">Stock: {product.stock}</p>
                 <div className="pos-product-footer">
-                  <span>{toPHP(product.price)}</span>
-                  <button className="btn btn-primary" onClick={() => addToCart(product)}>
+                  <span>{toPhp(product.price)}</span>
+                  <button className="btn btn-primary btn-sm" onClick={() => addProduct(product)}>
                     Add
                   </button>
                 </div>
               </article>
             ))}
             {filteredProducts.length === 0 && (
-              <p className="pos-note">No products found for this filter and search.</p>
+              <p className="pos-note">No active products found.</p>
             )}
+          </div>
+            </div>
           </div>
         </section>
 
-        <aside className="panel pos-cart-panel">
+        <aside className="col-xl-4">
+          <div className="card panel pos-cart-panel border-0 shadow-sm h-100">
+            <div className="card-body">
           <div className="pos-cart-head">
-            <h2>Current Cart</h2>
-            <button className="btn" onClick={holdSale}>
-              Hold Sale
-            </button>
+            <h2 className="h5 mb-0">Current Cart</h2>
+            <button className="btn btn-secondary btn-sm" onClick={cancelSale}>Cancel Sale</button>
           </div>
 
           <div className="pos-cart-list">
             {cartItems.map((item) => (
               <div
-                className={`pos-cart-row ${selectedSku === item.sku ? "selected" : ""}`}
-                key={item.sku}
-                onClick={() => setSelectedSku(item.sku)}
+                key={item.lineId}
+                className={`pos-cart-row ${selectedCartId === item.lineId ? "selected" : ""}`}
+                onClick={() => setSelectedCartId(item.lineId)}
               >
                 <div>
                   <p className="pos-cart-name">{item.name}</p>
-                  <p className="pos-cart-sku">{item.sku}</p>
+                  <p className="pos-cart-sku">{item.barcode}</p>
                 </div>
-
                 <div className="pos-cart-controls">
-                  <button
-                    className="btn"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      decrementQty(item.sku);
-                    }}
-                  >
-                    -
-                  </button>
+                  <button className="btn btn-outline-secondary btn-sm" onClick={(e) => { e.stopPropagation(); updateQty(item.lineId, -1); }}>-</button>
                   <span>{item.qty}</span>
-                  <button
-                    className="btn"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      incrementQty(item.sku);
-                    }}
-                  >
-                    +
-                  </button>
+                  <button className="btn btn-outline-secondary btn-sm" onClick={(e) => { e.stopPropagation(); updateQty(item.lineId, 1); }}>+</button>
                 </div>
-
-                <div className="pos-cart-price">{toPHP(item.qty * item.price)}</div>
+                <div className="pos-cart-price">{toPhp(item.qty * item.price)}</div>
               </div>
             ))}
             {cartItems.length === 0 && <p className="pos-note">Cart is empty.</p>}
           </div>
 
           <div className="pos-summary">
-            <div>
-              <span>Subtotal</span>
-              <strong>{toPHP(subtotal)}</strong>
-            </div>
-            <div>
-              <span>Tax (12%)</span>
-              <strong>{toPHP(tax)}</strong>
-            </div>
-            <div>
-              <span>Discount</span>
-              <strong>- {toPHP(discount)}</strong>
-            </div>
-            <div className="pos-total-row">
-              <span>Total Due</span>
-              <strong>{toPHP(total)}</strong>
-            </div>
+            <div><span>Subtotal</span><strong>{toPhp(subtotal)}</strong></div>
+            <div><span>Discount</span><strong>- {toPhp(discountAmount)}</strong></div>
+            <div className="pos-total-row"><span>Total Due</span><strong>{toPhp(total)}</strong></div>
             <div>
               <span>Cash Tendered</span>
-              <strong>
-                <input
-                  className="pos-cash-input"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={cashInput}
-                  onChange={(event) => setCashInput(event.target.value)}
-                />
-              </strong>
+              <input
+                className="pos-cash-input form-control"
+                type="number"
+                min="0"
+                step="0.01"
+                value={cashInput}
+                onChange={(e) => setCashInput(e.target.value)}
+              />
             </div>
-            <div>
-              <span>Change</span>
-              <strong className={change < 0 ? "pos-negative" : ""}>{toPHP(change)}</strong>
-            </div>
-            <div className="pos-quick-cash">
-              <button className="btn" onClick={() => setQuickCash(100)}>
-                100
-              </button>
-              <button className="btn" onClick={() => setQuickCash(200)}>
-                200
-              </button>
-              <button className="btn" onClick={() => setQuickCash(500)}>
-                500
-              </button>
-              <button className="btn" onClick={() => setQuickCash(1000)}>
-                1000
-              </button>
-            </div>
+            <div><span>Change</span><strong className={change < 0 ? "pos-negative" : ""}>{toPhp(change)}</strong></div>
+          </div>
+
+          <div className="discount-box">
+            <label className="form-label mb-0">
+              Discount Type
+              <select className="form-select" value={stagedDiscount} onChange={(e) => setStagedDiscount(e.target.value)} disabled={discountType !== "NONE"}>
+                {discountChoices.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+            </label>
+            <button className="btn btn-secondary" onClick={applyDiscount} disabled={discountType !== "NONE" || cartItems.length === 0}>
+              Apply Discount
+            </button>
+            {discountType !== "NONE" && (
+              <p className="pos-note">Applied: {discountRules[discountType].label} ({discountRules[discountType].rate * 100}%)</p>
+            )}
           </div>
 
           <div className="pos-actions">
-            <button className="btn" onClick={applyDiscount}>
-              Apply Discount
-            </button>
-            <button className="btn" onClick={voidSelectedItem}>
-              Void Item
-            </button>
-            <button className="btn" onClick={clearCart}>
-              Clear Cart
-            </button>
-            <button className="btn btn-primary" onClick={completeSale}>
-              Complete Sale
-            </button>
+            <button className="btn btn-secondary" onClick={voidSelectedItem}>Void Item</button>
+            <button className="btn btn-primary" onClick={completeSale}>Complete Sale</button>
           </div>
           <p className="pos-note">{message}</p>
+            </div>
+          </div>
         </aside>
       </div>
     </div>

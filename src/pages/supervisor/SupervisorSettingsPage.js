@@ -31,24 +31,26 @@ export default function SupervisorSettingsPage() {
   };
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1>Supervisor Settings</h1>
+    <div className="page d-flex flex-column gap-3">
+      <div className="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <h1 className="mb-0">Supervisor Settings</h1>
       </div>
 
-      <div className="panel add-user-panel">
-        <div className="panel-header">
+      <div className="card panel add-user-panel border-0 shadow-sm">
+        <div className="card-body">
+          <div className="panel-header d-flex justify-content-between align-items-start flex-wrap gap-2">
           <div>
-            <h2>Receipt & Store Settings</h2>
-            <p>Configure how your store information appears on printed receipts.</p>
+              <h2 className="h5 mb-1">Receipt & Store Settings</h2>
+              <p className="mb-0">Configure how your store information appears on printed receipts.</p>
           </div>
           <span className="badge">Supervisor</span>
         </div>
 
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <label>
+          <form className="form-grid row g-3" onSubmit={handleSubmit}>
+            <label className="form-label col-12 col-md-6 mb-0">
             Store name
             <input
+                className="form-control"
               type="text"
               value={form.storeName}
               onChange={(e) => handleChange("storeName", e.target.value)}
@@ -56,27 +58,30 @@ export default function SupervisorSettingsPage() {
             />
           </label>
 
-          <label>
+            <label className="form-label col-12 col-md-6 mb-0">
             Store address
             <input
+                className="form-control"
               type="text"
               value={form.storeAddress}
               onChange={(e) => handleChange("storeAddress", e.target.value)}
             />
           </label>
 
-          <label>
+            <label className="form-label col-12 col-md-6 mb-0">
             Store phone
             <input
+                className="form-control"
               type="text"
               value={form.storePhone}
               onChange={(e) => handleChange("storePhone", e.target.value)}
             />
           </label>
 
-          <label>
+            <label className="form-label col-12 col-md-6 mb-0">
             Tax rate (%)
             <input
+                className="form-control"
               type="number"
               min="0"
               step="0.01"
@@ -85,9 +90,10 @@ export default function SupervisorSettingsPage() {
             />
           </label>
 
-          <label>
+            <label className="form-label col-12 mb-0">
             Header note
             <input
+                className="form-control"
               type="text"
               value={form.headerNote}
               onChange={(e) => handleChange("headerNote", e.target.value)}
@@ -95,9 +101,10 @@ export default function SupervisorSettingsPage() {
             />
           </label>
 
-          <label>
+            <label className="form-label col-12 mb-0">
             Footer note
             <input
+                className="form-control"
               type="text"
               value={form.footerNote}
               onChange={(e) => handleChange("footerNote", e.target.value)}
@@ -105,17 +112,18 @@ export default function SupervisorSettingsPage() {
             />
           </label>
 
-          <div className="form-actions">
-            <button type="button" className="btn" onClick={handleReset}>
+            <div className="form-actions col-12 d-flex justify-content-end gap-2 flex-wrap">
+              <button type="button" className="btn btn-secondary" onClick={handleReset}>
               Reset to defaults
             </button>
-            <button type="submit" className="btn btn-primary button-full">
+              <button type="submit" className="btn btn-primary button-full">
               Save settings
             </button>
           </div>
 
-          {saved && <div className="form-message">Settings saved. New receipts will use these values.</div>}
+            {saved && <div className="form-message col-12 mb-0">Settings saved. New receipts will use these values.</div>}
         </form>
+        </div>
       </div>
     </div>
   );
