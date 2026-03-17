@@ -208,7 +208,7 @@ export default function POSPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-
+          <br></br>
           <div className="scan-bar">
             <input
               className="form-control"
