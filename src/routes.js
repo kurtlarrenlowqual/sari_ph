@@ -39,6 +39,8 @@ export default function AppRoutes() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
 
+      <Route path="/sales/pos" element={<POSPage />} />
+
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
 
@@ -49,7 +51,6 @@ export default function AppRoutes() {
         <Route path="/users" element={<UserListPage />} />
         <Route path="/users/add" element={<AddUserPage />} />
 
-        <Route path="/sales/pos" element={<POSPage />} />
         <Route path="/receipts/new" element={<ReceiptPage />} />
         <Route path="/receipts/reprint" element={<ReprintReceiptPage />} />
         <Route path="/supervisor/post-void" element={<PostVoidApprovalPage />} />
