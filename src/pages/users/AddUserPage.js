@@ -1,119 +1,97 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const STORAGE_KEY = "sari_users";
-
-function getSavedUsers() {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return [];
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function setSavedUsers(users) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-}
+import { usePos } from "../../state/posStore";
 
 export default function AddUserPage() {
-  const [user, setUser] = useState({ fullName: "", username: "", password: "", role: "Cashier" });
-  const [message, setMessage] = useState("");
   const navigate = useNavigate();
+  const { currentUser, runAction } = usePos();
+  const [form, setForm] = useState({
+    fullName: "",
+    username: "",
+    email: "",
+    password: "",
+    role: "Cashier",
+  });
+  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState("");
 
-  const handleChange = (field) => (event) => {
-    setUser((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const handleSubmit = (event) => {
+  const submit = (event) => {
     event.preventDefault();
-    if (!user.fullName.trim() || !user.username.trim() || !user.password.trim()) {
-      setMessage("Please complete all fields before creating a user.");
+    const result = runAction({
+      type: "CREATE_USER",
+      payload: { actor: currentUser.username, user: form },
+    });
+
+    if (!result.ok) {
+      setErrors(result.errors || {});
+      setMessage("Unable to create account.");
       return;
     }
 
-    const existingUsers = getSavedUsers();
-    const newUser = {
-      id: existingUsers.length + 1,
-      fullName: user.fullName.trim(),
-      username: user.username.trim(),
-      role: user.role,
-      status: "Active",
-      createdAt: new Date().toISOString(),
-    };
-    setSavedUsers([...existingUsers, newUser]);
-
-    setMessage(`User '${user.username}' created successfully.`);
-    setUser({ fullName: "", username: "", password: "", role: "Cashier" });
-
-    setTimeout(() => {
-      navigate("/users");
-    }, 300);
-  };
-
-  const handleReset = () => {
-    setUser({ fullName: "", username: "", password: "", role: "Cashier" });
-    setMessage("");
+    setErrors({});
+    setMessage("User account created with Active status.");
+    setForm({ fullName: "", username: "", email: "", password: "", role: "Cashier" });
+    setTimeout(() => navigate("/users"), 400);
   };
 
   return (
-    <div>
-      <div className="page-header">
-        <h1>Add User</h1>
-        <p>Create a new system account</p>
+    <div className="page d-flex flex-column gap-3">
+      <div className="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <h1 className="mb-1">Add User</h1>
+          <p className="mb-0">Create user with unique username and secure password</p>
+        </div>
       </div>
 
-      <div className="panel add-user-panel">
-        <div className="panel-header">
-          <div>
-            <h2>User details</h2>
-            <p>Fill in the user information to add an account.</p>
-          </div>
-          <span className="badge">UI only</span>
-        </div>
-
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <label>
+      <div className="card panel add-user-panel border-0 shadow-sm">
+        <div className="card-body">
+          <form className="form-grid row g-3" onSubmit={submit}>
+            <label className="form-label col-12 col-md-6 mb-0">
             Full Name
-            <input type="text" value={user.fullName} onChange={handleChange("fullName")} placeholder="Ex: Juan Dela Cruz" />
+              <input className="form-control" value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))} />
+            {errors.fullName && <span className="form-error">{errors.fullName}</span>}
           </label>
 
-          <label>
+            <label className="form-label col-12 col-md-6 mb-0">
             Username
-            <input type="text" value={user.username} onChange={handleChange("username")} placeholder="Ex: jdelacruz" />
+              <input className="form-control" value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
+            {errors.username && <span className="form-error">{errors.username}</span>}
           </label>
 
-          <label>
+            <label className="form-label col-12 col-md-6 mb-0">
+            Email
+              <input className="form-control" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+            {errors.email && <span className="form-error">{errors.email}</span>}
+          </label>
+
+            <label className="form-label col-12 col-md-6 mb-0">
             Password
-            <input type="password" value={user.password} onChange={handleChange("password")} placeholder="Enter password" />
+            <input
+                className="form-control"
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+            />
+            {errors.password && <span className="form-error">{errors.password}</span>}
           </label>
 
-          <label>
+            <label className="form-label col-12 col-md-6 mb-0">
             Role
-            <select value={user.role} onChange={handleChange("role")}>
-              <option>Administrator</option>
-              <option>Supervisor</option>
+              <select className="form-select" value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}>
               <option>Cashier</option>
+              <option>Supervisor</option>
+              <option>Administrator</option>
             </select>
           </label>
 
-          <div className="form-actions">
-            <button type="button" className="btn btn-outline" onClick={handleReset}>
-              Reset
-            </button>
-            <button type="submit" className="btn btn-primary button-full">
-              Create User
-            </button>
+            <div className="form-actions col-12 d-flex justify-content-end gap-2 flex-wrap">
+              <button type="button" className="btn btn-secondary" onClick={() => navigate("/users")}>Cancel</button>
+              <button type="submit" className="btn btn-primary button-full">Create User</button>
+            </div>
+          </form>
+
+          {message && <p className="form-message mb-0 mt-3">{message}</p>}
           </div>
-        </form>
-
-        {message && <p className="form-message">{message}</p>}
-
-        <p className="hint-box">
-          After creating, you will be redirected to the User Directory automatically.
-        </p>
       </div>
     </div>
   );

@@ -1,14 +1,25 @@
 import React from "react";
 
-export default function ReceiptPreview({ settings, items }) {
-  const subtotal = items.reduce((sum, item) => sum + item.qty * item.price, 0);
-  const taxAmount = (subtotal * (settings.taxRate || 0)) / 100;
-  const total = subtotal + taxAmount;
+function money(value) {
+  return `PHP ${Number(value || 0).toFixed(2)}`;
+}
+
+export default function ReceiptPreview({ settings, transaction, modeLabel = "" }) {
+  if (!transaction) {
+    return (
+      <div className="card border-0 shadow-sm">
+        <div className="card-header bg-white">
+          <h2 className="h5 mb-0">Receipt Preview</h2>
+        </div>
+        <div className="card-body">No transaction selected.</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <h2>Receipt Preview</h2>
+    <div className="card border-0 shadow-sm">
+      <div className="card-header bg-white">
+        <h2 className="h5 mb-0">Receipt Preview</h2>
       </div>
       <div className="card-body">
         <div className="receipt-paper print-area">
@@ -16,6 +27,8 @@ export default function ReceiptPreview({ settings, items }) {
             <div className="store-name">{settings.storeName}</div>
             <div className="store-address">{settings.storeAddress}</div>
             <div className="store-phone">{settings.storePhone}</div>
+            <div>Transaction ID: {transaction.id}</div>
+            {modeLabel && <div className="receipt-tag">{modeLabel}</div>}
           </div>
 
           {settings.headerNote && <div className="receipt-note">{settings.headerNote}</div>}
@@ -32,19 +45,12 @@ export default function ReceiptPreview({ settings, items }) {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="empty-row">
-                    No items.
-                  </td>
-                </tr>
-              )}
-              {items.map((item) => (
-                <tr key={item.id}>
+              {transaction.items.map((item) => (
+                <tr key={`${transaction.id}-${item.productId}`}>
                   <td>{item.name}</td>
                   <td className="right">{item.qty}</td>
-                  <td className="right">₱{item.price.toFixed(2)}</td>
-                  <td className="right">₱{(item.qty * item.price).toFixed(2)}</td>
+                  <td className="right">{money(item.price)}</td>
+                  <td className="right">{money(item.qty * item.price)}</td>
                 </tr>
               ))}
             </tbody>
@@ -55,15 +61,27 @@ export default function ReceiptPreview({ settings, items }) {
           <div className="receipt-totals">
             <div className="row">
               <span>Subtotal</span>
-              <span>₱{subtotal.toFixed(2)}</span>
+              <span>{money(transaction.subtotal)}</span>
             </div>
             <div className="row">
-              <span>Tax ({settings.taxRate || 0}%)</span>
-              <span>₱{taxAmount.toFixed(2)}</span>
+              <span>Discount ({transaction.discount.label})</span>
+              <span>- {money(transaction.discount.amount)}</span>
             </div>
             <div className="row total">
               <span>Total</span>
-              <span>₱{total.toFixed(2)}</span>
+              <span>{money(transaction.total)}</span>
+            </div>
+            <div className="row">
+              <span>Cash</span>
+              <span>{money(transaction.payment.cash)}</span>
+            </div>
+            <div className="row">
+              <span>Change</span>
+              <span>{money(transaction.payment.change)}</span>
+            </div>
+            <div className="row">
+              <span>Status</span>
+              <span>{transaction.status}</span>
             </div>
           </div>
 
@@ -78,4 +96,3 @@ export default function ReceiptPreview({ settings, items }) {
     </div>
   );
 }
-
