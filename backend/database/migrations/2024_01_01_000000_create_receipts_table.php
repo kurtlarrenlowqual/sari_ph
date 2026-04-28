@@ -27,11 +27,6 @@ return new class extends Migration
             $table->string('void_reason')->nullable();
             $table->unsignedBigInteger('post_void_approval_id')->nullable();
             $table->timestamps();
-
-            $table->foreign('post_void_approval_id')
-                ->references('id')
-                ->on('post_void_approvals')
-                ->onDelete('set null');
         });
     }
 

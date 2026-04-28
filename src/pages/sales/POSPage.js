@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePos } from "../../state/posStore";
 
@@ -15,7 +15,7 @@ const discountChoices = [
 
 export default function POSPage() {
   const navigate = useNavigate();
-  const { state, currentUser, discountRules, runAction } = usePos();
+  const { state, currentUser, discountRules, runAction, loadProducts, completeSale } = usePos();
 
   const [query, setQuery] = useState("");
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -25,6 +25,12 @@ export default function POSPage() {
   const [stagedDiscount, setStagedDiscount] = useState("SENIOR_CITIZEN");
   const [cashInput, setCashInput] = useState("");
   const [message, setMessage] = useState("Ready for checkout.");
+
+  useEffect(() => {
+    loadProducts({ status: "Active" }).catch((error) => {
+      setMessage(error.message || "Unable to load products from the backend.");
+    });
+  }, [loadProducts]);
 
   const activeProducts = state.products.filter((p) => p.status === "Active");
 
@@ -157,28 +163,29 @@ export default function POSPage() {
     setMessage("Sale canceled. No receipt generated.");
   };
 
-  const completeSale = () => {
-    const result = runAction({
-      type: "COMPLETE_SALE",
-      payload: {
+  const checkout = async () => {
+    try {
+      const result = await completeSale({
         actor: currentUser.username,
         cartItems,
         payment: { cash },
         discountType,
-      },
-    });
+      });
 
-    if (!result.ok) {
-      setMessage(result.error || "Unable to complete sale.");
-      return;
+      if (!result.ok) {
+        setMessage(result.error || "Unable to complete sale.");
+        return;
+      }
+
+      setCartItems([]);
+      setSelectedCartId("");
+      setDiscountType("NONE");
+      setCashInput("");
+      setMessage(`Sale completed. Change: ${toPhp(result.transaction.payment.change)}`);
+      navigate(`/receipts/new?transactionId=${result.transaction.id}`);
+    } catch (error) {
+      setMessage(error.errors?.items || error.errors?.amount_tendered || error.message || "Unable to complete sale.");
     }
-
-    setCartItems([]);
-    setSelectedCartId("");
-    setDiscountType("NONE");
-    setCashInput("");
-    setMessage(`Sale completed. Change: ${toPhp(result.transaction.payment.change)}`);
-    navigate(`/receipts/new?transactionId=${result.transaction.id}`);
   };
 
   return (
@@ -309,7 +316,7 @@ export default function POSPage() {
 
           <div className="pos-actions">
             <button className="btn btn-secondary" onClick={voidSelectedItem}>Void Item</button>
-            <button className="btn btn-primary" onClick={completeSale}>Complete Sale</button>
+            <button className="btn btn-primary" onClick={checkout}>Complete Sale</button>
           </div>
           <p className="pos-note">{message}</p>
             </div>

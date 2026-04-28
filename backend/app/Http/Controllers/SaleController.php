@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sale;
+use App\Models\Product;
+use App\Models\Receipt;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -78,9 +80,30 @@ class SaleController extends Controller
                 $quantity = (int) $item['quantity'];
                 $unitPrice = (float) $item['unit_price'];
                 $itemDiscount = (float) ($item['discount_total'] ?? 0);
+                $productId = $item['product_id'] ?? null;
+
+                if ($productId !== null) {
+                    $product = Product::query()->lockForUpdate()->find($productId);
+
+                    if ($product !== null) {
+                        if ($product->status !== 'Active') {
+                            throw ValidationException::withMessages([
+                                'items' => ["{$product->name} is inactive."],
+                            ]);
+                        }
+
+                        if ($product->stock < $quantity) {
+                            throw ValidationException::withMessages([
+                                'items' => ["Insufficient stock for {$product->name}."],
+                            ]);
+                        }
+
+                        $product->decrement('stock', $quantity);
+                    }
+                }
 
                 $sale->items()->create([
-                    'product_id' => $item['product_id'] ?? null,
+                    'product_id' => $productId,
                     'sku' => $item['sku'] ?? null,
                     'name' => $item['name'],
                     'quantity' => $quantity,
@@ -89,6 +112,27 @@ class SaleController extends Controller
                     'line_total' => round(max(0, ($unitPrice * $quantity) - $itemDiscount), 2),
                 ]);
             }
+
+            Receipt::query()->create([
+                'receipt_number' => $sale->receipt_number,
+                'transaction_date' => $sale->sold_at,
+                'items' => $sale->items->map(fn ($item) => [
+                    'product_id' => $item->product_id,
+                    'sku' => $item->sku,
+                    'name' => $item->name,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->unit_price,
+                    'discount_total' => $item->discount_total,
+                    'line_total' => $item->line_total,
+                ])->values()->all(),
+                'subtotal' => $sale->subtotal,
+                'tax' => $sale->tax_total,
+                'total' => $sale->total,
+                'payment_method' => $sale->payment_method,
+                'customer_name' => null,
+                'status' => 'completed',
+                'created_by' => auth()->id() ?? 0,
+            ]);
 
             return $sale->load('items');
         });

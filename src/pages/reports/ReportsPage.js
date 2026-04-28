@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { usePos } from "../../state/posStore";
 
 function money(value) {
@@ -5,7 +6,12 @@ function money(value) {
 }
 
 export default function ReportsPage() {
-  const { state } = usePos();
+  const { state, loadTransactions, loadPostVoidRequests } = usePos();
+
+  useEffect(() => {
+    loadTransactions().catch(() => {});
+    loadPostVoidRequests().catch(() => {});
+  }, [loadTransactions, loadPostVoidRequests]);
 
   return (
     <div className="page d-flex flex-column gap-3">

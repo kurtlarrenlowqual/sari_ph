@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ReceiptPreview from "../../components/receipt/ReceiptPreview";
 import { loadSettings } from "../../state/settings";
 import { usePos } from "../../state/posStore";
 
 export default function ReprintReceiptPage() {
-  const { state, currentUser, runAction } = usePos();
+  const { state, currentUser, runAction, loadTransactions } = usePos();
   const [searchId, setSearchId] = useState("");
   const [searchDate, setSearchDate] = useState("");
   const [selectedTxId, setSelectedTxId] = useState("");
@@ -13,6 +13,10 @@ export default function ReprintReceiptPage() {
 
   const isCashier = currentUser?.role === "Cashier";
   const isSupervisor = currentUser?.role === "Supervisor";
+
+  useEffect(() => {
+    loadTransactions().catch((error) => setMessage(error.message || "Unable to load transactions."));
+  }, [loadTransactions]);
 
   const transactions = state.transactions;
   const lastTransaction = state.transactions[0] || null;

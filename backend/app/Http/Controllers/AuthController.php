@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -28,15 +28,32 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+        $validated = $request->validate([
+            'username' => ['required', 'string'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $user = User::query()
+            ->where('username', $validated['username'])
+            ->orWhere('email', $validated['username'])
+            ->first();
+
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'username' => ['Invalid username or password.'],
+            ]);
         }
 
-        $user = Auth::user();
+        if (($user->status ?? 'Active') !== 'Active') {
+            throw ValidationException::withMessages([
+                'username' => ['This account is inactive.'],
+            ]);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => $this->presentUser($user),
             'token' => $token
         ]);
     }
@@ -49,6 +66,39 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        return response()->json($this->presentUser($request->user()));
+    }
+
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'min:8'],
+        ]);
+
+        $user = $request->user();
+        $user->update([
+            'password' => Hash::make($validated['password']),
+            'is_temp_password' => false,
+        ]);
+
+        return response()->json([
+            'user' => $this->presentUser($user->fresh()),
+        ]);
+    }
+
+    private function presentUser(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'username' => $user->username ?: $user->email,
+            'fullName' => $user->name,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role ?? 'Cashier',
+            'status' => $user->status ?? 'Active',
+            'isTempPassword' => (bool) ($user->is_temp_password ?? false),
+            'createdAt' => optional($user->created_at)->toISOString(),
+            'updatedAt' => optional($user->updated_at)->toISOString(),
+        ];
     }
 }

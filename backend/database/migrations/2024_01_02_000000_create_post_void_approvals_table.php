@@ -29,6 +29,13 @@ return new class extends Migration
                 ->on('receipts')
                 ->onDelete('cascade');
         });
+
+        Schema::table('receipts', function (Blueprint $table) {
+            $table->foreign('post_void_approval_id')
+                ->references('id')
+                ->on('post_void_approvals')
+                ->onDelete('set null');
+        });
     }
 
     /**
@@ -36,6 +43,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('receipts', function (Blueprint $table) {
+            $table->dropForeign(['post_void_approval_id']);
+        });
+
         Schema::dropIfExists('post_void_approvals');
     }
 };

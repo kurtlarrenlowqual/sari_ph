@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePos } from "../../state/posStore";
 
 const initialEdit = { fullName: "", email: "", role: "Cashier" };
 
 export default function UserListPage() {
-  const { state, currentUser, runAction } = usePos();
+  const { state, loadUsers, updateUser, resetUserPassword } = usePos();
   const [selectedId, setSelectedId] = useState(null);
   const [editForm, setEditForm] = useState(initialEdit);
   const [message, setMessage] = useState("");
@@ -14,6 +14,10 @@ export default function UserListPage() {
   const users = state.users;
   const selected = useMemo(() => users.find((u) => u.id === selectedId) || null, [users, selectedId]);
 
+  useEffect(() => {
+    loadUsers().catch((error) => setMessage(error.message || "Unable to load users."));
+  }, [loadUsers]);
+
   const pickUser = (user) => {
     setSelectedId(user.id);
     setEditForm({ fullName: user.fullName, email: user.email, role: user.role });
@@ -22,27 +26,19 @@ export default function UserListPage() {
     setNewPassword("");
   };
 
-  const saveUser = () => {
+  const saveUser = async () => {
     if (!selected) return;
-    const result = runAction({
-      type: "UPDATE_USER",
-      payload: {
-        actor: currentUser.username,
-        userId: selected.id,
-        updates: editForm,
-      },
-    });
-
-    if (!result.ok) {
-      setErrors(result.errors || {});
-      setMessage(result.error || "Unable to update user.");
-      return;
+    try {
+      await updateUser(selected.id, { ...editForm, status: selected.status });
+      setErrors({});
+      setMessage("User profile updated.");
+    } catch (error) {
+      setErrors(error.errors || {});
+      setMessage(error.message || "Unable to update user.");
     }
-    setErrors({});
-    setMessage("User profile updated.");
   };
 
-  const toggleStatus = () => {
+  const toggleStatus = async () => {
     if (!selected) return;
     const targetStatus = selected.status === "Active" ? "Inactive" : "Active";
     const confirmed = window.confirm(
@@ -50,52 +46,33 @@ export default function UserListPage() {
     );
     if (!confirmed) return;
 
-    const result = runAction({
-      type: "SET_USER_STATUS",
-      payload: { actor: currentUser.username, userId: selected.id, status: targetStatus },
-    });
-
-    if (!result.ok) {
-      setMessage(result.error || "Unable to change status.");
-      return;
+    try {
+      await updateUser(selected.id, { ...editForm, status: targetStatus });
+      setMessage(`User status changed to ${targetStatus}.`);
+    } catch (error) {
+      setMessage(error.message || "Unable to change status.");
     }
-    setMessage(`User status changed to ${targetStatus}.`);
   };
 
-  const resetTemporary = () => {
+  const resetTemporary = async () => {
     if (!selected) return;
-    const result = runAction({
-      type: "RESET_USER_PASSWORD",
-      payload: {
-        actor: currentUser.username,
-        userId: selected.id,
-        mode: "temporary",
-      },
-    });
-    if (!result.ok) {
-      setMessage(result.error || "Unable to reset password.");
-      return;
+    try {
+      const result = await resetUserPassword(selected.id, { mode: "temporary" });
+      setMessage(`Temporary password: ${result.temporaryPassword}. User must change on next login.`);
+    } catch (error) {
+      setMessage(error.message || "Unable to reset password.");
     }
-    setMessage(`Temporary password: ${result.temporaryPassword}. User must change on next login.`);
   };
 
-  const resetManual = () => {
+  const resetManual = async () => {
     if (!selected) return;
-    const result = runAction({
-      type: "RESET_USER_PASSWORD",
-      payload: {
-        actor: currentUser.username,
-        userId: selected.id,
-        mode: "manual",
-        value: newPassword,
-      },
-    });
-    if (!result.ok) {
-      setMessage(result.error || "Unable to set new password.");
-      return;
+    try {
+      await resetUserPassword(selected.id, { mode: "manual", password: newPassword });
+      setMessage("Password updated successfully.");
+      setNewPassword("");
+    } catch (error) {
+      setMessage(error.message || "Unable to set new password.");
     }
-    setMessage("Password updated successfully.");
-    setNewPassword("");
   };
 
   return (

@@ -1,16 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ReceiptPreview from "../../components/receipt/ReceiptPreview";
 import { loadSettings } from "../../state/settings";
 import { usePos } from "../../state/posStore";
 
 export default function PostVoidApprovalPage() {
-  const { state, currentUser, runAction } = usePos();
+  const { state, currentUser, loadPostVoidRequests, loadTransactions, decidePostVoidRequest } = usePos();
   const settings = loadSettings();
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [decisionReason, setDecisionReason] = useState("");
   const [message, setMessage] = useState("");
 
   const pendingRequests = state.postVoidRequests.filter((r) => r.status === "Pending");
+
+  useEffect(() => {
+    loadPostVoidRequests().catch((error) => setMessage(error.message || "Unable to load post-void requests."));
+    loadTransactions().catch(() => {});
+  }, [loadPostVoidRequests, loadTransactions]);
 
   const selectedRequest = useMemo(
     () => state.postVoidRequests.find((r) => r.id === selectedRequestId) || null,
@@ -21,26 +26,21 @@ export default function PostVoidApprovalPage() {
     ? state.transactions.find((t) => t.id === selectedRequest.transactionId) || null
     : null;
 
-  const decide = (decision) => {
+  const decide = async (decision) => {
     if (!selectedRequest) return;
-    const result = runAction({
-      type: "DECIDE_POST_VOID",
-      payload: {
-        actor: currentUser.username,
+    try {
+      await decidePostVoidRequest({
         requestId: selectedRequest.id,
         decision,
+        userId: currentUser.id,
         reason: decisionReason,
-      },
-    });
-
-    if (!result.ok) {
-      setMessage(result.error || "Unable to process decision.");
-      return;
+      });
+      setMessage(`Post-void request ${decision.toLowerCase()}.`);
+      setDecisionReason("");
+      setSelectedRequestId("");
+    } catch (error) {
+      setMessage(error.message || "Unable to process decision.");
     }
-
-    setMessage(`Post-void request ${decision.toLowerCase()}.`);
-    setDecisionReason("");
-    setSelectedRequestId("");
   };
 
   return (

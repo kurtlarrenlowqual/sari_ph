@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PostVoidApproval;
 use App\Models\Receipt;
+use App\Models\Sale;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -58,12 +59,21 @@ class PostVoidController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'receipt_id' => 'required|exists:receipts,id',
+            'receipt_id' => 'nullable|exists:receipts,id',
+            'receipt_number' => 'nullable|string|exists:receipts,receipt_number',
             'requested_by' => 'required|integer',
             'reason' => 'required|string|min:10',
         ]);
 
-        $receipt = Receipt::find($validated['receipt_id']);
+        $receipt = isset($validated['receipt_id'])
+            ? Receipt::find($validated['receipt_id'])
+            : Receipt::where('receipt_number', $validated['receipt_number'] ?? '')->first();
+
+        if (!$receipt) {
+            return response()->json([
+                'error' => 'Receipt not found'
+            ], 422);
+        }
 
         // Check if receipt can be voided
         if (!$receipt->canBeVoided()) {
@@ -74,7 +84,7 @@ class PostVoidController extends Controller
 
         // Create approval request
         $approval = PostVoidApproval::create([
-            'receipt_id' => $validated['receipt_id'],
+            'receipt_id' => $receipt->id,
             'requested_by' => $validated['requested_by'],
             'reason' => $validated['reason'],
             'status' => 'pending'
@@ -119,6 +129,10 @@ class PostVoidController extends Controller
             'status' => 'cancelled',
             'post_void_approval_id' => $approval->id
         ]);
+
+        Sale::query()
+            ->where('receipt_number', $receipt->receipt_number)
+            ->update(['status' => 'voided']);
 
         return response()->json([
             'message' => 'Post-void request approved and receipt voided',

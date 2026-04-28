@@ -3,10 +3,10 @@ import { usePos } from "../../state/posStore";
 
 export default function Navbar({ onMenuToggle }) {
   const navigate = useNavigate();
-  const { currentUser, runAction } = usePos();
+  const { currentUser, logout: logoutApi } = usePos();
 
-  const logout = () => {
-    runAction({ type: "LOGOUT" });
+  const logout = async () => {
+    await logoutApi();
     navigate("/login", { replace: true });
   };
 

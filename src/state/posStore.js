@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { authApi, postVoidApi, productsApi, salesApi, setApiToken, usersApi } from "../api/client";
 
 const STORAGE_KEY = "sari_ph_pos_state_v2";
 
@@ -174,6 +175,72 @@ function auditEntry(type, action, entity, entityId, performedBy, details) {
   };
 }
 
+function normalizeProduct(product) {
+  return {
+    id: product.id,
+    name: product.name,
+    barcode: product.barcode,
+    price: Number(product.price || 0),
+    stock: Number(product.stock || 0),
+    status: product.status || "Active",
+    createdAt: product.created_at || product.createdAt || nowIso(),
+    updatedAt: product.updated_at || product.updatedAt || nowIso(),
+    priceHistory: product.priceHistory || [],
+  };
+}
+
+function normalizeUser(user) {
+  return {
+    id: user.id,
+    username: user.username || user.email,
+    password: "",
+    fullName: user.fullName || user.name || "",
+    email: user.email || "",
+    role: normalizeRole(user.role),
+    status: user.status || "Active",
+    isTempPassword: !!(user.isTempPassword ?? user.is_temp_password),
+    createdAt: user.createdAt || user.created_at || nowIso(),
+    updatedAt: user.updatedAt || user.updated_at || nowIso(),
+  };
+}
+
+function saleToTransaction(sale, fallback = {}) {
+  const items = (sale.items || []).map((item) => ({
+    lineId: `line-${item.id}`,
+    productId: item.product_id,
+    barcode: item.sku || "",
+    name: item.name,
+    price: Number(item.unit_price || 0),
+    qty: Number(item.quantity || 0),
+  }));
+  const subtotal = Number(sale.subtotal || fallback.subtotal || 0);
+  const discountAmount = Number(sale.discount_total || fallback.discountAmount || 0);
+  const total = Number(sale.total || fallback.total || 0);
+  const cash = Number(sale.amount_tendered || fallback.cash || 0);
+
+  return {
+    id: sale.receipt_number || `SALE-${sale.id}`,
+    backendId: sale.id,
+    receiptId: sale.receipt_id || fallback.receiptId || null,
+    status: sale.status === "paid" ? "Completed" : sale.status === "voided" ? "Voided" : sale.status,
+    cashierUsername: fallback.actor || "cashier",
+    createdAt: sale.sold_at || sale.created_at || nowIso(),
+    items,
+    subtotal,
+    discount: {
+      type: fallback.discountType || "NONE",
+      label: DISCOUNT_RULES[fallback.discountType]?.label || "None",
+      rate: DISCOUNT_RULES[fallback.discountType]?.rate || 0,
+      amount: discountAmount,
+    },
+    total,
+    payment: {
+      cash,
+      change: Number(sale.change_due || cash - total),
+    },
+  };
+}
+
 function countActiveAdmins(users) {
   return users.filter((u) => u.role === "Administrator" && u.status === "Active").length;
 }
@@ -259,6 +326,62 @@ function reducer(state, action) {
       return next;
     }
 
+    case "SET_PRODUCTS_FROM_API": {
+      return {
+        ...state,
+        products: action.payload.products.map(normalizeProduct),
+      };
+    }
+
+    case "SET_USERS_FROM_API": {
+      return {
+        ...state,
+        users: action.payload.users.map(normalizeUser),
+      };
+    }
+
+    case "LOGIN_FROM_API": {
+      const user = normalizeUser(action.payload.user);
+      const users = state.users.some((u) => u.id === user.id)
+        ? state.users.map((u) => (u.id === user.id ? user : u))
+        : [user, ...state.users];
+
+      return {
+        ...state,
+        users,
+        auth: {
+          currentUserId: user.isTempPassword ? null : user.id,
+          pendingPasswordChangeUserId: user.isTempPassword ? user.id : null,
+          sessionRole: user.isTempPassword ? null : user.role,
+          sessionDisplayName: user.isTempPassword ? null : user.fullName,
+          sessionUsername: user.isTempPassword ? null : user.username,
+        },
+        auditLogs: [
+          auditEntry("user", "LOGIN_SUCCESS", "user", user.id, user.username, "User logged in"),
+          ...state.auditLogs,
+        ],
+        _result: { ok: true, needsPasswordChange: user.isTempPassword, user },
+      };
+    }
+
+    case "CHANGE_TEMP_PASSWORD_FROM_API": {
+      const user = normalizeUser(action.payload.user);
+      const users = state.users.map((u) => (u.id === user.id ? user : u));
+
+      return {
+        ...state,
+        users,
+        auth: {
+          currentUserId: user.id,
+          pendingPasswordChangeUserId: null,
+          sessionRole: user.role,
+          sessionDisplayName: user.fullName,
+          sessionUsername: user.username,
+        },
+        _result: { ok: true },
+      };
+    }
+
     case "LOGOUT": {
       const currentUser = state.users.find((u) => u.id === state.auth.currentUserId);
       return {
@@ -337,6 +460,32 @@ function reducer(state, action) {
           ...state.auditLogs,
         ],
         _result: { ok: true, product },
+      };
+    }
+
+    case "UPSERT_PRODUCT_FROM_API": {
+      const product = normalizeProduct(action.payload.product);
+      const exists = state.products.some((p) => p.id === product.id);
+
+      return {
+        ...state,
+        products: exists
+          ? state.products.map((p) => (p.id === product.id ? { ...p, ...product } : p))
+          : [product, ...state.products],
+        _result: { ok: true, product },
+      };
+    }
+
+    case "UPSERT_USER_FROM_API": {
+      const user = normalizeUser(action.payload.user);
+      const exists = state.users.some((u) => u.id === user.id);
+
+      return {
+        ...state,
+        users: exists
+          ? state.users.map((u) => (u.id === user.id ? { ...u, ...user } : u))
+          : [user, ...state.users],
+        _result: { ok: true, user },
       };
     }
 
@@ -655,6 +804,57 @@ function reducer(state, action) {
       };
     }
 
+    case "COMPLETE_SALE_FROM_API": {
+      const transaction = saleToTransaction(action.payload.sale, action.payload.fallback);
+
+      return {
+        ...state,
+        transactions: [transaction, ...state.transactions],
+        receipt: {
+          ...state.receipt,
+          lastTransactionId: transaction.id,
+          currentReceipt: { transactionId: transaction.id, mode: "ORIGINAL" },
+        },
+        auditLogs: [
+          auditEntry(
+            "sales",
+            "COMPLETE_SALE",
+            "transaction",
+            transaction.id,
+            action.payload.fallback.actor,
+            `Completed sale ${transaction.id}`
+          ),
+          ...state.auditLogs,
+        ],
+        _result: { ok: true, transaction },
+      };
+    }
+
+    case "SET_TRANSACTIONS_FROM_API": {
+      return {
+        ...state,
+        transactions: action.payload.sales.map((sale) => saleToTransaction(sale)),
+      };
+    }
+
+    case "SET_POST_VOID_FROM_API": {
+      return {
+        ...state,
+        postVoidRequests: action.payload.requests.map((request) => ({
+          id: request.id,
+          receiptId: request.receipt_id,
+          transactionId: request.receipt?.receipt_number || String(request.receipt_id),
+          requestedBy: request.requested_by,
+          reason: request.reason,
+          status: request.status === "pending" ? "Pending" : request.status === "approved" ? "Approved" : "Rejected",
+          createdAt: request.created_at || nowIso(),
+          decidedBy: request.approved_by,
+          decidedAt: request.approved_at || request.rejected_at,
+          decisionReason: request.notes || request.rejection_reason || "",
+        })),
+      };
+    }
+
     case "CANCEL_SALE": {
       const { actor, cartItems, reason } = action.payload;
       const id = nextId("cancel");
@@ -854,6 +1054,140 @@ export function PosProvider({ children }) {
     return next._result || { ok: true };
   };
 
+  const login = useCallback(async (credentials) => {
+    const response = await authApi.login(credentials);
+    return runAction({ type: "LOGIN_FROM_API", payload: { user: response.user } });
+  }, []);
+
+  const logout = useCallback(async () => {
+    await authApi.logout().catch(() => setApiToken(null));
+    runAction({ type: "LOGOUT" });
+  }, []);
+
+  const changePassword = useCallback(async (password) => {
+    const response = await authApi.changePassword(password);
+    return runAction({ type: "CHANGE_TEMP_PASSWORD_FROM_API", payload: { user: response.user } });
+  }, []);
+
+  const loadUsers = useCallback(async () => {
+    const response = await usersApi.list();
+    const users = response.data || [];
+    runAction({ type: "SET_USERS_FROM_API", payload: { users } });
+    return users.map(normalizeUser);
+  }, []);
+
+  const createUser = useCallback(async (user) => {
+    const response = await usersApi.create(user);
+    const result = runAction({ type: "UPSERT_USER_FROM_API", payload: { user: response.data } });
+    return result.user;
+  }, []);
+
+  const updateUser = useCallback(async (id, user) => {
+    const response = await usersApi.update(id, user);
+    const result = runAction({ type: "UPSERT_USER_FROM_API", payload: { user: response.data } });
+    return result.user;
+  }, []);
+
+  const resetUserPassword = useCallback(async (id, payload) => {
+    const response = await usersApi.resetPassword(id, payload);
+    const result = runAction({ type: "UPSERT_USER_FROM_API", payload: { user: response.data } });
+    return { ...result, temporaryPassword: response.temporaryPassword };
+  }, []);
+
+  const loadProducts = useCallback(async (params) => {
+    const response = await productsApi.list(params);
+    const products = response.data || [];
+    runAction({ type: "SET_PRODUCTS_FROM_API", payload: { products } });
+    return products.map(normalizeProduct);
+  }, []);
+
+  const createProduct = useCallback(async (product) => {
+    const response = await productsApi.create({
+      name: product.name,
+      barcode: product.barcode,
+      price: product.price,
+      stock: product.stock,
+      status: product.status || "Active",
+    });
+    const result = runAction({
+      type: "UPSERT_PRODUCT_FROM_API",
+      payload: { product: response.data },
+    });
+    return result.product;
+  }, []);
+
+  const updateProduct = useCallback(async (id, product) => {
+    const response = await productsApi.update(id, product);
+    const result = runAction({
+      type: "UPSERT_PRODUCT_FROM_API",
+      payload: { product: response.data },
+    });
+    return result.product;
+  }, []);
+
+  const completeSale = useCallback(async ({ actor, cartItems, payment, discountType }) => {
+    const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const discountAmount = Number((subtotal * (DISCOUNT_RULES[discountType]?.rate || 0)).toFixed(2));
+    const total = Number(Math.max(subtotal - discountAmount, 0).toFixed(2));
+    const cash = Number(payment.cash || 0);
+
+    const response = await salesApi.create({
+      payment_method: "cash",
+      amount_tendered: cash,
+      discount_total: discountAmount,
+      items: cartItems.map((item) => ({
+        product_id: item.productId,
+        sku: item.barcode,
+        name: item.name,
+        quantity: item.qty,
+        unit_price: item.price,
+      })),
+    });
+
+    const result = runAction({
+      type: "COMPLETE_SALE_FROM_API",
+      payload: {
+        sale: response.data,
+        fallback: { actor, subtotal, discountAmount, total, cash, discountType },
+      },
+    });
+    await loadProducts();
+    return result;
+  }, [loadProducts]);
+
+  const loadTransactions = useCallback(async () => {
+    const response = await salesApi.list();
+    const sales = response.data || [];
+    runAction({ type: "SET_TRANSACTIONS_FROM_API", payload: { sales } });
+    return sales.map((sale) => saleToTransaction(sale));
+  }, []);
+
+  const loadPostVoidRequests = useCallback(async (params) => {
+    const response = await postVoidApi.list(params);
+    const requests = response.data || [];
+    runAction({ type: "SET_POST_VOID_FROM_API", payload: { requests } });
+    return requests;
+  }, []);
+
+  const createPostVoidRequest = useCallback(async ({ transactionId, requestedBy, reason }) => {
+    const response = await postVoidApi.create({
+      receipt_number: transactionId,
+      requested_by: requestedBy,
+      reason,
+    });
+    await loadPostVoidRequests();
+    return response;
+  }, [loadPostVoidRequests]);
+
+  const decidePostVoidRequest = useCallback(async ({ requestId, decision, userId, reason }) => {
+    const response = decision === "Approved"
+      ? await postVoidApi.approve(requestId, { approved_by: userId, notes: reason })
+      : await postVoidApi.reject(requestId, { rejected_by: userId, rejection_reason: reason });
+    await loadPostVoidRequests();
+    await loadTransactions();
+    return response;
+  }, [loadPostVoidRequests, loadTransactions]);
+
   useEffect(() => {
     const { _result, ...persistable } = state;
     persistState(persistable);
@@ -886,6 +1220,21 @@ export function PosProvider({ children }) {
       state,
       dispatch,
       runAction,
+      login,
+      logout,
+      changePassword,
+      loadUsers,
+      createUser,
+      updateUser,
+      resetUserPassword,
+      loadProducts,
+      createProduct,
+      updateProduct,
+      completeSale,
+      loadTransactions,
+      loadPostVoidRequests,
+      createPostVoidRequest,
+      decidePostVoidRequest,
       currentUser,
       pendingPasswordUser,
       discountRules: DISCOUNT_RULES,
@@ -893,7 +1242,26 @@ export function PosProvider({ children }) {
       validateEmail,
       clearResult: () => dispatch({ type: "CLEAR_RESULT" }),
     }),
-    [state, currentUser, pendingPasswordUser]
+    [
+      state,
+      login,
+      logout,
+      changePassword,
+      loadUsers,
+      createUser,
+      updateUser,
+      resetUserPassword,
+      loadProducts,
+      createProduct,
+      updateProduct,
+      completeSale,
+      loadTransactions,
+      loadPostVoidRequests,
+      createPostVoidRequest,
+      decidePostVoidRequest,
+      currentUser,
+      pendingPasswordUser,
+    ]
   );
 
   return <PosContext.Provider value={value}>{children}</PosContext.Provider>;

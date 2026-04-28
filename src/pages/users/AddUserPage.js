@@ -4,7 +4,7 @@ import { usePos } from "../../state/posStore";
 
 export default function AddUserPage() {
   const navigate = useNavigate();
-  const { currentUser, runAction } = usePos();
+  const { createUser } = usePos();
   const [form, setForm] = useState({
     fullName: "",
     username: "",
@@ -15,23 +15,18 @@ export default function AddUserPage() {
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
-    const result = runAction({
-      type: "CREATE_USER",
-      payload: { actor: currentUser.username, user: form },
-    });
-
-    if (!result.ok) {
-      setErrors(result.errors || {});
-      setMessage("Unable to create account.");
-      return;
+    try {
+      await createUser(form);
+      setErrors({});
+      setMessage("User account created with Active status.");
+      setForm({ fullName: "", username: "", email: "", password: "", role: "Cashier" });
+      setTimeout(() => navigate("/users"), 400);
+    } catch (error) {
+      setErrors(error.errors || {});
+      setMessage(error.message || "Unable to create account.");
     }
-
-    setErrors({});
-    setMessage("User account created with Active status.");
-    setForm({ fullName: "", username: "", email: "", password: "", role: "Cashier" });
-    setTimeout(() => navigate("/users"), 400);
   };
 
   return (

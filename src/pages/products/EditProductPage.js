@@ -5,11 +5,15 @@ import { usePos } from "../../state/posStore";
 export default function EditProductPage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { state, runAction, currentUser } = usePos();
-  const product = state.products.find((p) => p.id === id);
+  const { state, loadProducts, updateProduct } = usePos();
+  const product = state.products.find((p) => String(p.id) === String(id));
   const [form, setForm] = useState({ name: "", barcode: "", price: "", stock: "" });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    loadProducts().catch(() => {});
+  }, [loadProducts]);
 
   useEffect(() => {
     if (!product) return;
@@ -23,29 +27,22 @@ export default function EditProductPage() {
 
   if (!product) return <div className="card border-0 shadow-sm"><div className="card-body">Product not found.</div></div>;
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    const result = runAction({
-      type: "UPDATE_PRODUCT",
-      payload: {
-        actor: currentUser.username,
-        productId: product.id,
-        updates: {
-          name: form.name,
-          price: form.price,
-          stock: form.stock,
-        },
-      },
-    });
-
-    if (!result.ok) {
-      setErrors(result.errors || {});
-      setMessage(result.error || "Please fix validation errors.");
-      return;
+    try {
+      await updateProduct(product.id, {
+        name: form.name,
+        barcode: form.barcode,
+        price: form.price,
+        stock: form.stock,
+        status: product.status,
+      });
+      setErrors({});
+      setMessage("Product updated successfully.");
+    } catch (error) {
+      setErrors(error.errors || {});
+      setMessage(error.message || "Please fix validation errors.");
     }
-
-    setErrors({});
-    setMessage("Product updated successfully.");
   };
 
   return (

@@ -6,7 +6,7 @@ import { usePos } from "../../state/posStore";
 
 export default function ReceiptPage() {
   const [searchParams] = useSearchParams();
-  const { state, currentUser, runAction } = usePos();
+  const { state, currentUser, runAction, loadTransactions, createPostVoidRequest } = usePos();
   const [message, setMessage] = useState("");
   const settings = loadSettings();
 
@@ -15,6 +15,12 @@ export default function ReceiptPage() {
     () => state.transactions.find((t) => t.id === transactionId) || null,
     [state.transactions, transactionId]
   );
+
+  useEffect(() => {
+    if (!transaction) {
+      loadTransactions().catch(() => {});
+    }
+  }, [transaction, loadTransactions]);
 
   useEffect(() => {
     if (!transaction) return;
@@ -29,22 +35,19 @@ export default function ReceiptPage() {
     window.print();
   };
 
-  const requestPostVoid = () => {
+  const requestPostVoid = async () => {
     if (!transaction) return;
     const reason = window.prompt("Reason for post-void request:", "Customer return issue");
-    const result = runAction({
-      type: "REQUEST_POST_VOID",
-      payload: {
-        actor: currentUser.username,
+    try {
+      await createPostVoidRequest({
         transactionId: transaction.id,
+        requestedBy: currentUser.id,
         reason: reason || "",
-      },
-    });
-    if (!result.ok) {
-      setMessage(result.error || "Unable to create post-void request.");
-      return;
+      });
+      setMessage("Post-void request submitted to supervisor.");
+    } catch (error) {
+      setMessage(error.message || "Unable to create post-void request.");
     }
-    setMessage("Post-void request submitted to supervisor.");
   };
 
   return (

@@ -4,7 +4,7 @@ import { usePos } from "../state/posStore";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { runAction } = usePos();
+  const { login } = usePos();
   const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
 
@@ -13,19 +13,19 @@ export default function LoginPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    const result = runAction({ type: "LOGIN", payload: form });
-    if (!result || !result.ok) {
-      setError((result && result.error) || "Invalid username or password.");
-      return;
+    try {
+      const result = await login(form);
+      setError("");
+      if (result.needsPasswordChange) {
+        navigate("/change-password", { replace: true });
+        return;
+      }
+      navigate("/dashboard", { replace: true });
+    } catch (error) {
+      setError(error.errors?.username || error.message || "Invalid username or password.");
     }
-    setError("");
-    if (result.needsPasswordChange) {
-      navigate("/change-password", { replace: true });
-      return;
-    }
-    navigate("/dashboard", { replace: true });
   }
 
   return (

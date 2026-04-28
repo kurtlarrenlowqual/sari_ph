@@ -4,35 +4,27 @@ import { usePos } from "../../state/posStore";
 
 export default function AddProductPage() {
   const navigate = useNavigate();
-  const { currentUser, runAction } = usePos();
+  const { createProduct } = usePos();
   const [form, setForm] = useState({ name: "", barcode: "", price: "", stock: "" });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    const result = runAction({
-      type: "CREATE_PRODUCT",
-      payload: {
-        actor: currentUser.username,
-        product: {
-          name: form.name,
-          barcode: form.barcode,
-          price: form.price,
-          stock: form.stock,
-        },
-      },
-    });
-
-    if (!result.ok) {
-      setErrors(result.errors || {});
-      setMessage("Please fix validation errors.");
-      return;
+    try {
+      await createProduct({
+        name: form.name,
+        barcode: form.barcode,
+        price: form.price,
+        stock: form.stock,
+      });
+      setErrors({});
+      setMessage("Product created successfully and set to Active.");
+      setTimeout(() => navigate("/products"), 400);
+    } catch (error) {
+      setErrors(error.errors || {});
+      setMessage(error.message || "Please fix validation errors.");
     }
-
-    setErrors({});
-    setMessage("Product created successfully and set to Active.");
-    setTimeout(() => navigate("/products"), 400);
   };
 
   return (

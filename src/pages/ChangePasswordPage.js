@@ -4,7 +4,7 @@ import { usePos } from "../state/posStore";
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate();
-  const { runAction, pendingPasswordUser, validatePasswordComplexity } = usePos();
+  const { changePassword, pendingPasswordUser, validatePasswordComplexity } = usePos();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -13,7 +13,7 @@ export default function ChangePasswordPage() {
     return <Navigate to="/login" replace />;
   }
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (password !== confirm) {
       setError("Passwords do not match.");
@@ -26,17 +26,13 @@ export default function ChangePasswordPage() {
       return;
     }
 
-    const result = runAction({
-      type: "CHANGE_TEMP_PASSWORD",
-      payload: { userId: pendingPasswordUser.id, newPassword: password },
-    });
-    if (!result.ok) {
-      setError(result.error || "Unable to change password.");
-      return;
+    try {
+      await changePassword(password);
+      setError("");
+      navigate("/dashboard", { replace: true });
+    } catch (error) {
+      setError(error.message || "Unable to change password.");
     }
-
-    setError("");
-    navigate("/dashboard", { replace: true });
   };
 
   return (

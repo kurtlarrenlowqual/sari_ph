@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import { usePos } from "../state/posStore";
 
 function toPhp(value) {
@@ -6,7 +7,14 @@ function toPhp(value) {
 }
 
 export default function DashboardPage() {
-  const { state, currentUser } = usePos();
+  const { state, currentUser, loadProducts, loadUsers, loadTransactions, loadPostVoidRequests } = usePos();
+
+  useEffect(() => {
+    loadProducts().catch(() => {});
+    loadUsers().catch(() => {});
+    loadTransactions().catch(() => {});
+    loadPostVoidRequests().catch(() => {});
+  }, [loadProducts, loadUsers, loadTransactions, loadPostVoidRequests]);
 
   const totalProducts = state.products.length;
   const activeUsers = state.users.filter((u) => u.status === "Active").length;

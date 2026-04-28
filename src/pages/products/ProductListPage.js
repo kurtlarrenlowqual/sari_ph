@@ -1,12 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePos } from "../../state/posStore";
 
 export default function ProductListPage() {
   const navigate = useNavigate();
-  const { state, currentUser, runAction } = usePos();
+  const { state, loadProducts, updateProduct } = usePos();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    loadProducts().catch((error) => {
+      setMessage(error.message || "Unable to load products from the backend.");
+    });
+  }, [loadProducts]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -18,16 +25,18 @@ export default function ProductListPage() {
     });
   }, [state.products, query, statusFilter]);
 
-  const toggleStatus = (product) => {
+  const toggleStatus = async (product) => {
     const nextStatus = product.status === "Active" ? "Inactive" : "Active";
     const ok = window.confirm(
       `${nextStatus === "Inactive" ? "Deactivate" : "Reactivate"} ${product.name}?`
     );
     if (!ok) return;
-    runAction({
-      type: "SET_PRODUCT_STATUS",
-      payload: { actor: currentUser.username, productId: product.id, status: nextStatus },
-    });
+    try {
+      await updateProduct(product.id, { ...product, status: nextStatus });
+      setMessage(`${product.name} is now ${nextStatus}.`);
+    } catch (error) {
+      setMessage(error.message || "Unable to update product status.");
+    }
   };
 
   return (
@@ -49,7 +58,8 @@ export default function ProductListPage() {
             <button className="btn btn-primary" onClick={() => navigate("/products/add")}>
             Add Product
           </button>
-        </div>
+          </div>
+          {message && <p className="form-message mb-3">{message}</p>}
 
           <div className="toolbar-inline row g-2 mb-3">
             <div className="col-12 col-lg-8">
